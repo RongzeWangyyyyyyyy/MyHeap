@@ -154,10 +154,14 @@ static int get_size_to_allocate(int user_size) {
  */
 static void *split_and_mark_used(struct myheap *h, void *block_start, int needed_size) {
   int block_size=get_block_size(block_start);
-    set_block_header(block_start,needed_size,1);
-  if (block_size-needed_size >= HEADER_SIZE*5) {
+  set_block_header(block_start,needed_size,1);
+  
+  if (is_within_heap_range(h,block_start)) {
+    if (block_size-needed_size >= HEADER_SIZE*5) {
     set_block_header(get_next_block(block_start),block_size-needed_size,0);
+    }
   }
+
   return get_payload(block_start);
 }
 
@@ -196,7 +200,17 @@ void myheap_free(struct myheap *h, void *payload) {
  * or NULL if no block large enough to satisfy the request exists.
  */
 void *myheap_malloc(struct myheap *h, unsigned int user_size) {
-  
-  /* TO BE COMPLETED BY THE STUDENT. */
-  return NULL;
+  int block_size = get_size_to_allocate(user_size);
+  void* payload = NULL;
+  void* addr;
+
+  for (addr = h->start; is_last_block(h,addr); get_next_block(addr)) {
+    if (get_block_size(addr)>=block_size) {
+      if (!block_is_in_use(addr)) {
+        payload=split_and_mark_used(addr,block_size,1);
+      }
+    }
+  }
+
+  return payload;
 }
