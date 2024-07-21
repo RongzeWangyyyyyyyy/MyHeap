@@ -135,9 +135,12 @@ static void *coalesce(struct myheap *h, void *first_block_start) {
  * of HEADER_SIZE.
  */
 static int get_size_to_allocate(int user_size) {
-  
-  /* TO BE COMPLETED BY THE STUDENT. */
-  return 0;
+  int pay_load = user_size;
+  if (user_size%HEADER_SIZE != 0) {
+    pay_load = pay_load+user_size%HEADER_SIZE;
+  } 
+
+  return pay_load+HEADER_SIZE*2;
 }
 
 /*
@@ -150,9 +153,12 @@ static int get_size_to_allocate(int user_size) {
  * block as in use. Returns the payload of the block marked as in use.
  */
 static void *split_and_mark_used(struct myheap *h, void *block_start, int needed_size) {
-
-  /* TO BE COMPLETED BY THE STUDENT. */
-  return NULL;
+  int block_size=get_block_size(block_start);
+    set_block_header(block_start,needed_size,1);
+  if (block_size-needed_size >= HEADER_SIZE*5) {
+    set_block_header(get_next_block(block_start),block_size-needed_size,0);
+  }
+  return get_payload(block_start);
 }
 
 /*
