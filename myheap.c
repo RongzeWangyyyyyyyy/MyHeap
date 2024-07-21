@@ -207,7 +207,7 @@ void *myheap_malloc(struct myheap *h, unsigned int user_size) {
   for (addr = h->start; is_last_block(h,addr); get_next_block(addr)) {
     if (get_block_size(addr)>=block_size) {
       if (!block_is_in_use(addr)) {
-        payload=split_and_mark_used(addr,block_size,1);
+        payload=split_and_mark_used(h,addr,1);
       }
     }
   }
