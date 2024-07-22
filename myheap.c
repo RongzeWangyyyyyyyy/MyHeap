@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/mman.h>
+#include <assert.h>
 
 #include "myheap.h"
 
@@ -137,7 +138,11 @@ static void *coalesce(struct myheap *h, void *first_block_start) {
 static int get_size_to_allocate(int user_size) {
   int pay_load = user_size;
   if (user_size%HEADER_SIZE != 0) {
-    pay_load = pay_load+user_size%HEADER_SIZE;
+    if (user_size < HEADER_SIZE) {
+      pay_load = HEADER_SIZE;
+    } else {
+      pay_load = pay_load + user_size%HEADER_SIZE;
+    }
   } 
 
   return pay_load+HEADER_SIZE*2;
@@ -154,14 +159,14 @@ static int get_size_to_allocate(int user_size) {
  */
 static void *split_and_mark_used(struct myheap *h, void *block_start, int needed_size) {
   int block_size=get_block_size(block_start);
-  set_block_header(block_start,needed_size,1);
-  
   if (is_within_heap_range(h,block_start)) {
     if (block_size-needed_size >= HEADER_SIZE*5) {
-    set_block_header(get_next_block(block_start),block_size-needed_size,0);
+      set_block_header(block_start,needed_size,1);
+      set_block_header(get_next_block(block_start),block_size-needed_size,0);
+    } else {
+      set_block_header(block_start,block_size,1);
     }
   }
-
   return get_payload(block_start);
 }
 
@@ -202,15 +207,52 @@ void myheap_free(struct myheap *h, void *payload) {
 void *myheap_malloc(struct myheap *h, unsigned int user_size) {
   int block_size = get_size_to_allocate(user_size);
   void* payload = NULL;
-  void* addr;
+  void* addr=h->start;
 
-  for (addr = h->start; is_last_block(h,addr); get_next_block(addr)) {
-    if (get_block_size(addr)>=block_size) {
-      if (!block_is_in_use(addr)) {
-        payload=split_and_mark_used(h,addr,1);
+  if (is_last_block(h, addr)) {
+    payload=split_and_mark_used(h,addr,block_size);
+  } else {
+    for (addr; is_within_heap_range(h,addr); addr=get_next_block(addr)) {
+      if (get_block_size(addr)>=block_size) {
+        if (!block_is_in_use(addr)) {
+          payload=split_and_mark_used(h,addr,block_size);
+          addr = h->start+h->size+1;
+        } 
       }
     }
+    
   }
-
   return payload;
+}
+
+int main(int agrc, char** argv) {
+  struct myheap* heap = heap_create(128);
+  void *start;
+  void *pay_load;
+
+  assert(get_size_to_allocate(16)==32);
+  assert(get_size_to_allocate(20)==40);
+  assert(get_size_to_allocate(7)==24);
+
+  pay_load=myheap_malloc(heap,20);
+  start = get_block_start(pay_load);
+  int block_size = get_block_size(start);
+  printf("The block size is %d \n", block_size);
+
+  void *next_start = get_next_block(start);
+  int block_size2 = get_block_size(next_start);
+  printf("The left over block size is %d \n", block_size2);
+
+  pay_load = myheap_malloc(heap,5);
+  start = get_block_start(pay_load);
+  block_size = get_block_size(start);
+  printf("The block size is %d \n", block_size);
+
+  next_start = get_next_block(start);
+  block_size2 = get_block_size(next_start);
+  printf("The left over block size is %d", block_size2);
+
+  
+
+  return 0;
 }
