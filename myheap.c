@@ -124,9 +124,18 @@ static int is_within_heap_range(struct myheap *h, void *addr) {
  * it returning a pointer to some block, then you are free to have it do so.
  */
 static void *coalesce(struct myheap *h, void *first_block_start) {
-  
-  /* TO BE COMPLETED BY THE STUDENT. */
-  return NULL;
+  int block_size;
+  void *start = get_next_block(first_block_start);
+  if (!is_last_block(h,first_block_start)) {
+    if (!block_is_in_use(first_block_start)) {
+      if (!block_is_in_use(get_next_block(first_block_start))) {
+        block_size = get_block_size(first_block_start) + get_block_size(get_next_block(first_block_start));
+        set_block_header(first_block_start, block_size,0);
+        start = first_block_start;
+      }
+    }
+  }
+  return start;
 }
 
 /*
@@ -173,8 +182,7 @@ static void *split_and_mark_used(struct myheap *h, void *block_start, int needed
 /*
  * Create a heap that is "size" bytes large.
  */
-struct myheap *heap_create(unsigned int size)
-{
+struct myheap *heap_create(unsigned int size) {
   /* Allocate space in the process' actual heap */
   void *heap_start = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   if (heap_start == (void *) -1) return NULL;
@@ -195,8 +203,18 @@ struct myheap *heap_create(unsigned int size)
  * block with the previous and the next block, if they are also free.
  */
 void myheap_free(struct myheap *h, void *payload) {
+  void *start = get_block_start(payload);
+
+  set_block_header(start,get_block_size(start),0);
   
-  /* TO BE COMPLETED BY THE STUDENT. */
+  if (!is_first_block(h,start)) {
+    start=coalesce(h, get_previous_block(start));
+  }
+
+  if (!is_last_block(h,start)) {
+    coalesce(h, start);
+  }
+  
 }
 
 /*
@@ -243,16 +261,26 @@ int main(int agrc, char** argv) {
   int block_size2 = get_block_size(next_start);
   printf("The left over block size is %d \n", block_size2);
 
-  pay_load = myheap_malloc(heap,5);
-  start = get_block_start(pay_load);
-  block_size = get_block_size(start);
+  pay_load=myheap_malloc(heap,10);
+  void *start2 = get_block_start(pay_load);
+  block_size = get_block_size(start2);
   printf("The block size is %d \n", block_size);
 
-  next_start = get_next_block(start);
+  next_start = get_next_block(start2);
   block_size2 = get_block_size(next_start);
-  printf("The left over block size is %d", block_size2);
+  printf("The left over block size is %d \n", block_size2);
 
-  
+  myheap_free(heap, pay_load);
+  start = get_block_start(pay_load);
+  assert(!block_is_in_use(start2));
+  myheap_free(heap,get_payload(start));
+  assert(!block_is_in_use(start));
+
+  block_size = get_block_size(start);
+  printf("The block size is %d \n", block_size);
+  block_size2 = get_block_size(start2);
+  printf("The block size is %d \n", block_size2);
+
 
   return 0;
 }
